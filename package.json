@@ -1,0 +1,12 @@
+{
+  "name": "discord-multi-bots-render",
+  "version": "1.0.0",
+  "description": "Tích hợp HTTP Server để giữ Bot hoạt động 24/7 trên Render Web Service",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "latest"
+  }
+}
