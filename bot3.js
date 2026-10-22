@@ -1,9 +1,14 @@
 const { Client } = require('discord.js-selfbot-v13');
 const fs = require('fs');
+const cron = require('node-cron');
 
 const CHANNEL_ID = "1543140705206276158";
 const MIN_RANDOM_NUM = 1;
 const MAX_RANDOM_NUM = 10000;
+const MAX_MESSAGES = 1000; // Giới hạn 1000 tin nhắn mỗi acc
+
+// Mảng lưu trữ các client đang chạy để có thể dọn dẹp khi cần
+let activeClients = [];
 
 async function getTokens() {
     let tokens = [];
@@ -25,6 +30,7 @@ function getRandomFloat(min, max) {
 
 async function startBot(token, index) {
     const client = new Client({ checkUpdate: false });
+    activeClients.push(client);
 
     client.on('ready', async () => {
         console.log(`[Acc ${index + 1}] Đã đăng nhập: ${client.user.tag}`);
@@ -37,12 +43,18 @@ async function startBot(token, index) {
             }
             console.log(`[Acc ${index + 1}] Bắt đầu spam số ngẫu nhiên vào kênh: ${channel.name}`);
 
-            while (true) {
+            let sentCount = 0;
+
+            while (sentCount < MAX_MESSAGES) {
+                // Nếu client đã bị hủy (do reset lúc 2h sáng), dừng vòng lặp ngay lập tức
+                if (!client.isReady()) break;
+
                 const numToSend = getRandomInt(MIN_RANDOM_NUM, MAX_RANDOM_NUM);
                 
                 try {
                     await channel.send(String(numToSend));
-                    console.log(`[Acc ${index + 1}] Đã gửi số ngẫu nhiên: ${numToSend}`);
+                    sentCount++;
+                    console.log(`[Acc ${index + 1}] Đã gửi số ngẫu nhiên: ${numToSend} (${sentCount}/${MAX_MESSAGES})`);
                 } catch (err) {
                     if (err.status === 429 || (err.message && err.message.includes('rate limit'))) {
                         const retryAfter = err.retryAfter ? err.retryAfter * 1000 : 5000;
@@ -57,7 +69,14 @@ async function startBot(token, index) {
                     }
                 }
 
-                // Tăng thời gian delay ngẫu nhiên an toàn hơn (15 đến 30 giây)
+                // Khi đạt đủ 1000 tin nhắn
+                if (sentCount >= MAX_MESSAGES) {
+                    console.log(`[Acc ${index + 1}] Đã hoàn thành gửi đủ ${MAX_MESSAGES} tin nhắn. Dừng hoạt động tài khoản này!`);
+                    await client.destroy(); // Đăng xuất và giải phóng tài nguyên của acc này
+                    break;
+                }
+
+                // Thời gian delay ngẫu nhiên từ 15 đến 30 giây
                 const delay = getRandomFloat(15, 30);
                 await new Promise(resolve => setTimeout(resolve, delay * 1000));
             }
@@ -68,7 +87,7 @@ async function startBot(token, index) {
     });
 
     client.on('shardDisconnect', () => {
-        console.warn(`[Acc ${index + 1}] Mất kết nối! Đang thử kết nối lại...`);
+        console.warn(`[Acc ${index + 1}] Mất kết nối!`);
     });
 
     client.login(token).catch(() => {
@@ -76,13 +95,32 @@ async function startBot(token, index) {
     });
 }
 
-(async () => {
+async function runAllBots() {
+    console.log('[System] Đang khởi động tiến trình gửi tin nhắn...');
     const tokens = await getTokens();
     if (tokens.length === 0) {
-        console.error("Không tìm thấy token!");
-        process.exit(1);
+        console.error("Không tìm thấy token nào!");
+        return;
     }
     tokens.forEach((token, index) => {
         startBot(token, index);
     });
-})();
+}
+
+// Lên lịch chạy vào lúc 2:00 sáng mỗi ngày
+cron.schedule('0 2 * * *', async () => {
+    console.log('[System] Đến lịch 2:00 sáng, làm mới và khởi động lại toàn bộ bot...');
+    
+    // Hủy các client cũ (nếu còn sót lại)
+    for (let client of activeClients) {
+        try {
+            await client.destroy();
+        } catch (e) {}
+    }
+    activeClients = [];
+
+    // Chạy lại từ đầu cho ngày mới
+    runAllBots();
+});
+
+// Chạy lần đầu tiên ngay khi khởi động script
