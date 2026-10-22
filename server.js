@@ -13,15 +13,13 @@ server.listen(PORT, () => {
     console.log(`[+] HTTP Server đã khởi chạy thành công trên cổng ${PORT}`);
 });
 
-// 2. Chạy tự động 4 file script với tên chuẩn không khoảng trắng
+// 2. Chỉ chạy tự động bot2.js và bot3.js
 const scripts = [
-    'bot1.js',
     'bot2.js',
-    'bot3.js',
-    'bot4.js'
+    'bot3.js'
 ];
 
-console.log('>>> Bắt đầu kích hoạt 4 file script Discord ngầm...\n');
+console.log('>>> Bắt đầu kích hoạt bot2 và bot3 ngầm...\n');
 
 scripts.forEach((file) => {
     const child = spawn('node', [file], { stdio: 'inherit', shell: true });
