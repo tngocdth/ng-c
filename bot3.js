@@ -41,11 +41,12 @@ async function startBot(token, index) {
                 console.error(`[Acc ${index + 1}] Không tìm thấy kênh với ID: ${CHANNEL_ID}`);
                 return;
             }
-            console.log(`[Acc ${index + 1}] Bắt đầu gửi số ngẫu nhiên vào kênh: ${channel.name}`);
+            console.log(`[Acc ${index + 1}] Bắt đầu spam số ngẫu nhiên vào kênh: ${channel.name}`);
 
             let sentCount = 0;
 
             while (sentCount < MAX_MESSAGES) {
+                // Nếu client đã bị hủy, dừng vòng lặp ngay lập tức
                 if (!client.isReady()) break;
 
                 const numToSend = getRandomInt(MIN_RANDOM_NUM, MAX_RANDOM_NUM);
@@ -68,12 +69,14 @@ async function startBot(token, index) {
                     }
                 }
 
+                // Khi đạt đủ 1000 tin nhắn
                 if (sentCount >= MAX_MESSAGES) {
                     console.log(`[Acc ${index + 1}] Đã hoàn thành gửi đủ ${MAX_MESSAGES} tin nhắn. Dừng hoạt động tài khoản này!`);
-                    await client.destroy();
+                    await client.destroy(); // Đăng xuất và giải phóng tài nguyên của acc này
                     break;
                 }
 
+                // Thời gian delay ngẫu nhiên từ 15 đến 30 giây
                 const delay = getRandomFloat(15, 30);
                 await new Promise(resolve => setTimeout(resolve, delay * 1000));
             }
@@ -104,17 +107,21 @@ async function runAllBots() {
     });
 }
 
-// Lên lịch chạy vào lúc 2:00 sáng mỗi ngày
-cron.schedule('0 2 * * *', async () => {
-    console.log('[System] Đến lịch 2:00 sáng, làm mới và khởi động lại toàn bộ bot...');
+// Lên lịch chạy vào lúc 1:10 sáng giờ Việt Nam (18:10 UTC) mỗi ngày
+cron.schedule('10 18 * * *', async () => {
+    console.log('[System] Đến lịch 1:10 sáng giờ Việt Nam, làm mới và khởi động lại toàn bộ bot...');
+    
+    // Hủy các client cũ (nếu còn sót lại)
     for (let client of activeClients) {
         try {
             await client.destroy();
         } catch (e) {}
     }
     activeClients = [];
+
+    // Chạy lại từ đầu cho ngày mới
     runAllBots();
 });
 
-// Chạy ngay lập tức khi khởi động script
+// Chạy lần đầu tiên ngay khi khởi động script
 runAllBots();
