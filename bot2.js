@@ -1,7 +1,7 @@
 const { Client } = require('discord.js-selfbot-v13');
 const fs = require('fs');
 
-const VOICE_CHANNEL_ID = "1543140705206276158";
+const VOICE_CHANNEL_ID = "1532928117096579113";
 const TOKEN_FILE = 'tokens.txt';
 
 async function getTokens() {
